@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日本語ヒーロー：ケンの修行（可能形・ます形ver）</title>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    
+    <!-- Babel (for JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(-5%); }
+          50% { transform: translateY(0); }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 2s infinite;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Icon Components (SVG) ---
+        // Lucide icons converted to inline components for single-file portability
+        const IconBase = ({ children, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        const ChevronRight = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><path d="m9 18 6-6-6-6"/></IconBase>
+        );
+        const ChevronLeft = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><path d="m15 18-6-6 6-6"/></IconBase>
+        );
+        const Star = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></IconBase>
+        );
+        const Sword = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/></IconBase>
+        );
+        const Scroll = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><path d="M8 2h2a4 4 0 0 1 4 4v16a4 4 0 0 1-4-4V2z"/><path d="M14 2h-1a5 5 0 0 0-5 5v13a4 4 0 0 0 4 4h1a4 4 0 0 0 4-4V2z"/></IconBase>
+        );
+        const Ghost = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><path d="M9 22v-2c0-1.1.9-2 2-2h2a2 2 0 0 1 2 2v2"/><path d="M9 22c-5 0-9-5-9-14a9 9 0 0 1 18 0c0 9-4 14-9 14"/></IconBase>
+        );
+        const Check = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><polyline points="20 6 9 17 4 12"/></IconBase>
+        );
+        const XIcon = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><path d="M18 6 6 18"/><path d="m6 6 18 18"/></IconBase>
+        );
+        const Trophy = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 1 0 5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></IconBase>
+        );
+        const RefreshCcw = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></IconBase>
+        );
+        const BookOpen = ({ size = 24, className = "" }) => (
+            <IconBase className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconBase>
+        );
+
+        // --- App Component ---
+
+        const HeroApp = () => {
+            const [currentSlide, setCurrentSlide] = useState(1);
+            const [score, setScore] = useState(0);
+            const [showFeedback, setShowFeedback] = useState(null);
+            const [heroHp, setHeroHp] = useState(100);
+            const [bossHp, setBossHp] = useState(100);
+
+            const totalSlides = 20;
+
+            // Character Component
+            const Character = ({ type, size = 'md' }) => {
+                const sizeClass = size === 'sm' ? 'text-4xl' : size === 'md' ? 'text-6xl' : 'text-8xl';
+                let emoji = '👦'; // Ken normal
+                if (type === 'happy') emoji = '😄';
+                if (type === 'sad') emoji = '😰';
+                if (type === 'fighting') emoji = '🥷';
+                if (type === 'sensei') emoji = '👴';
+                if (type === 'demon') emoji = '👹';
+
+                return <div className={`${sizeClass} drop-shadow-lg animate-bounce-slow transition-all duration-300`}>{emoji}</div>;
+            };
+
+            const ProgressBar = () => (
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4 dark:bg-gray-700">
+                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${(currentSlide / totalSlides) * 100}%` }}></div>
+                </div>
+            );
+
+            const handleNext = () => {
+                if (currentSlide < totalSlides) {
+                    setCurrentSlide(curr => curr + 1);
+                    setShowFeedback(null);
+                }
+            };
+
+            const handleBack = () => {
+                if (currentSlide > 1) {
+                    setCurrentSlide(curr => curr - 1);
+                    setShowFeedback(null);
+                }
+            };
+
+            const handleQuizAnswer = (isCorrect, feedback) => {
+                if (showFeedback) return;
+
+                if (isCorrect) {
+                    setScore(s => s + 10);
+                    setShowFeedback('correct');
+                    if (slides[currentSlide - 1].type === 'battle') {
+                        setBossHp(prev => Math.max(0, prev - 34));
+                    }
+                } else {
+                    setShowFeedback('incorrect');
+                    if (slides[currentSlide - 1].type === 'battle') {
+                        setHeroHp(prev => Math.max(0, prev - 20));
+                    }
+                }
+            };
+
+            const resetGame = () => {
+                setCurrentSlide(1);
+                setScore(0);
+                setHeroHp(100);
+                setBossHp(100);
+                setShowFeedback(null);
+            };
+
+            // --- Slide Data (Masu Form Update) ---
+            const slides = [
+                // --- INTRO (1-3) ---
+                {
+                    id: 1,
+                    type: 'story',
+                    title: '第1章：旅の始まり',
+                    bgStart: 'from-blue-400',
+                    bgEnd: 'to-blue-600',
+                    characterMood: 'normal',
+                    content: (
+                        <div className="text-center space-y-4">
+                            <h1 className="text-4xl font-bold text-white mb-6">日本語ヒーロー：ケンの修行</h1>
+                            <div className="bg-white/90 p-6 rounded-xl shadow-lg text-gray-800">
+                                <p className="mb-4">これは、弱虫な少年ケンが、伝説のヒーローになる物語。</p>
+                                <p>ケンはまだ何もできません。</p>
+                                <p className="font-bold text-blue-600">「日本語の漢字が読めません...」</p>
+                                <p className="font-bold text-blue-600">「速く走れません...」</p>
+                                <p className="mt-4">この物語を進めて、ケンに<span className="text-red-500 font-bold">「可能形 (Potential Form)」</span>を教えよう！</p>
+                            </div>
+                            <button onClick={handleNext} className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 flex items-center justify-center gap-2 mx-auto">
+                                スタート <ChevronRight className="inline" />
+                            </button>
+                        </div>
+                    )
+                },
+                {
+                    id: 2,
+                    type: 'story',
+                    title: '師匠との出会い',
+                    bgStart: 'from-green-400',
+                    bgEnd: 'to-green-700',
+                    characterMood: 'sensei',
+                    content: (
+                        <div className="flex flex-col items-center gap-6">
+                            <div className="flex gap-8 items-end">
+                                <div className="flex flex-col items-center">
+                                    <Character type="normal" />
+                                    <span className="bg-white px-2 py-1 rounded text-sm mt-2">ケン</span>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <Character type="sensei" />
+                                    <span className="bg-white px-2 py-1 rounded text-sm mt-2">師匠</span>
+                                </div>
+                            </div>
+                            <div className="bg-white/90 p-6 rounded-xl border-l-4 border-green-600 text-left w-full max-w-lg">
+                                <p className="text-gray-700 font-serif">
+                                    師匠：「ケンよ、ヒーローになりたければ、<br/>
+                                    <span className="text-xl font-bold text-green-700">『〜ができる』</span><br/>
+                                    と言えるようにならねばならん！」
+                                </p>
+                                <p className="mt-4 text-gray-700">
+                                    ケン：「はい！頑張ります！」
+                                </p>
+                            </div>
+                        </div>
+                    )
+                },
+                {
+                    id: 3,
+                    type: 'lesson',
+                    title: '秘伝の巻物：グループ2',
+                    bgStart: 'from-amber-100',
+                    bgEnd: 'to-amber-300',
+                    content: (
+                        <div className="w-full max-w-lg">
+                            <div className="bg-yellow-50 p-6 rounded-lg shadow-inner border-4 border-yellow-600 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-2 opacity-20"><Scroll size={64} className="text-amber-800"/></div>
+                                <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2"><BookOpen className="inline"/> グループ2</h3>
+                                <p className="mb-2">ルールは簡単！ <span className="font-bold text-red-500">「ます」</span>をとって、<span className="font-bold text-green-600">「られる」</span>をつけるだけ。</p>
+                                
+                                <div className="bg-white p-4 rounded shadow mt-4 grid grid-cols-1 gap-2 text-lg">
+                                    <div className="flex justify-between border-b pb-2">
+                                        <span>食べ<span className="text-red-500 font-bold">ます</span></span>
+                                        <ChevronRight className="text-gray-400"/>
+                                        <span>食べ<span className="text-green-600 font-bold">られる</span></span>
+                                    </div>
+                                    <div className="flex justify-between border-b pb-2">
+                                        <span>見<span className="text-red-500 font-bold">ます</span></span>
+                                        <ChevronRight className="text-gray-400"/>
+                                        <span>見<span className="text-green-600 font-bold">られる</span></span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>寝<span className="text-red-500 font-bold">ます</span></span>
+                                        <ChevronRight className="text-gray-400"/>
+                                        <span>寝<span className="text-green-600 font-bold">られる</span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                },
+                // --- LEVEL 1: FOOD & BASICS (4-7) ---
+                {
+                    id: 4,
+                    type: 'quiz',
+                    title: '修行その1：食堂にて',
+                    bgStart: 'from-orange-400',
+                    bgEnd: 'to-red-500',
+                    characterMood: 'happy',
+                    content: <div className="text-center mb-4"><p>ケンは食堂に来ました。<br/>納豆（なっとう）が出されましたが...</p></div>,
+                    quizData: {
+                        question: "「私は納豆を_____。」",
+                        options: [
+                            { label: "食べれる", isCorrect: false, feedback: "おしい！「ら抜き言葉」ですね。正しい文法は..." },
+                            { label: "食べられる", isCorrect: true, feedback: "正解！ グループ2は「ます」→「られる」です。" },
+                            { label: "食べることができる", isCorrect: true, feedback: "正解！ でも、今回は短い形を練習しましょう。" },
+                        ]
+                    }
+                },
+                {
+                    id: 5,
+                    type: 'lesson',
+                    title: '秘伝の巻物：グループ3',
+                    bgStart: 'from-amber-100',
+                    bgEnd: 'to-amber-300',
+                    content: (
+                        <div className="w-full max-w-lg">
+                            <div className="bg-yellow-50 p-6 rounded-lg shadow-inner border-4 border-yellow-600">
+                                <h3 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2"><Star className="text-yellow-500"/> グループ3</h3>
+                                <p className="mb-2">これは覚えるだけ！たった2つです。</p>
+                                
+                                <div className="bg-white p-4 rounded shadow mt-4 grid grid-cols-1 gap-4 text-xl font-bold text-center">
+                                    <div className="p-2 bg-blue-50 rounded">
+                                        します <ChevronRight className="inline mx-2"/> <span className="text-blue-600">できる</span>
+                                    </div>
+                                    <div className="p-2 bg-red-50 rounded">
+                                        きます <ChevronRight className="inline mx-2"/> <span className="text-red-600">こられる</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                },
+                {
+                    id: 6,
+                    type: 'quiz',
+                    title: '修行その2：スポーツ',
+                    bgStart: 'from-sky-400',
+                    bgEnd: 'to-indigo-500',
+                    content: <div className="text-center mb-4"><p>ケンはテニスの試合をします。</p></div>,
+                    quizData: {
+                        question: "「ケンはテニスが_____。」",
+                        options: [
+                            { label: "すれる", isCorrect: false },
+                            { label: "できる", isCorrect: true, feedback: "素晴らしい！「します」→「できる」です。" },
+                            { label: "しられる", isCorrect: false },
+                        ]
+                    }
+                },
+                {
+                    id: 7,
+                    type: 'story',
+                    title: 'レベルアップ！',
+                    bgStart: 'from-yellow-300',
+                    bgEnd: 'to-orange-400',
+                    characterMood: 'happy',
+                    content: (
+                        <div className="text-center">
+                            <Trophy size={80} className="mx-auto text-yellow-600 mb-4 animate-bounce" />
+                            <h2 className="text-2xl font-bold text-white mb-2">第1段階 クリア！</h2>
+                            <p className="bg-white/80 p-4 rounded-lg">
+                                ケンは自信がつきました。<br/>
+                                「先生、僕は何でも<span className="text-blue-600 font-bold">食べられる</span>し、スポーツも<span className="text-blue-600 font-bold">できる</span>よ！」
+                            </p>
+                            <p className="mt-4 text-white font-bold">次は一番難しい「グループ1」の修行だ！</p>
+                        </div>
+                    )
+                },
+                // --- LEVEL 2: GROUP 1 & PARTICLES (8-13) ---
+                {
+                    id: 8,
+                    type: 'lesson',
+                    title: '秘伝の巻物：グループ1',
+                    bgStart: 'from-purple-200',
+                    bgEnd: 'to-purple-400',
+                    content: (
+                        <div className="w-full max-w-lg">
+                            <div className="bg-white p-6 rounded-lg shadow-xl">
+                                <h3 className="text-xl font-bold text-purple-800 mb-4">グループ1</h3>
+                                <p className="mb-4">「ます」の前の音を、「い段」から「え段」に変えて「る」をつけます。</p>
+                                <p className="text-center font-bold bg-gray-100 p-2 rounded mb-4">い段 &#8594; え段 ＋ る</p>
+                                
+                                <div className="grid grid-cols-2 gap-3 text-sm md:text-base">
+                                    <div className="bg-purple-50 p-2 rounded">い<span className="font-bold text-red-500">き</span>ます</div>
+                                    <div className="bg-purple-100 p-2 rounded font-bold">い<span className="text-green-600">け</span>る</div>
+                                    
+                                    <div className="bg-purple-50 p-2 rounded">よ<span className="font-bold text-red-500">み</span>ます</div>
+                                    <div className="bg-purple-100 p-2 rounded font-bold">よ<span className="text-green-600">め</span>る</div>
+                                    
+                                    <div className="bg-purple-50 p-2 rounded">およ<span className="font-bold text-red-500">ぎ</span>ます</div>
+                                    <div className="bg-purple-100 p-2 rounded font-bold">およ<span className="text-green-600">げ</span>る</div>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                },
+                {
+                    id: 9,
+                    type: 'quiz',
+                    title: '修行その3：図書館',
+                    bgStart: 'from-teal-500',
+                    bgEnd: 'to-teal-700',
+                    content: <div className="text-center mb-4"><p>図書館には難しい漢字の本がたくさんあります。</p></div>,
+                    quizData: {
+                        question: "「ケンは漢字が_____。」",
+                        options: [
+                            { label: "よまれる", isCorrect: false },
+                            { label: "よめれる", isCorrect: false, feedback: "「れ」はいりません！" },
+                            { label: "よめる", isCorrect: true, feedback: "正解！ よみます → よめる" },
+                        ]
+                    }
+                },
+                {
+                    id: 10,
+                    type: 'lesson',
+                    title: '重要なルール：助詞',
+                    bgStart: 'from-pink-300',
+                    bgEnd: 'to-pink-500',
+                    content: (
+                        <div className="w-full max-w-lg bg-white p-6 rounded-xl text-center">
+                            <h3 className="text-2xl font-bold text-pink-600 mb-4">助詞の変化</h3>
+                            <p className="mb-6 text-lg">可能形のとき、「を」は<br/><span className="text-3xl font-bold text-blue-600">「が」</span><br/>によく変わります。</p>
+                            
+                            <div className="space-y-4 text-left bg-gray-50 p-4 rounded">
+                                <div className="flex items-center gap-2">
+                                    <XIcon className="text-red-500"/> 漢字 <span className="font-bold text-red-400 line-through">を</span> 読める
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Check className="text-green-500"/> 漢字 <span className="font-bold text-blue-600">が</span> 読める
+                                </div>
+                            </div>
+                            <p className="mt-4 text-sm text-gray-500">※「を」を使うこともありますが、「が」が自然です。</p>
+                        </div>
+                    )
+                },
+                {
+                    id: 11,
+                    type: 'quiz',
+                    title: '修行その4：ピアノ',
+                    bgStart: 'from-indigo-400',
+                    bgEnd: 'to-purple-600',
+                    content: <div className="text-center mb-4"><p>助詞に気をつけて！</p></div>,
+                    quizData: {
+                        question: "「私はピアノ____ひけます。」",
+                        options: [
+                            { label: "を", isCorrect: false, feedback: "間違いではありませんが、もっと自然なのは..." },
+                            { label: "が", isCorrect: true, feedback: "完璧です！ピアノがひけます。" },
+                            { label: "に", isCorrect: false },
+                        ]
+                    }
+                },
+                {
+                    id: 12,
+                    type: 'quiz',
+                    title: '修行その5：海へ',
+                    bgStart: 'from-blue-400',
+                    bgEnd: 'to-cyan-300',
+                    content: <div className="text-center mb-4"><p>海に来ました。泳ぎましょう！<br/>泳ぎます → ??</p></div>,
+                    quizData: {
+                        question: "「どこまで _____ か？」",
+                        options: [
+                            { label: "およげる", isCorrect: true, feedback: "正解！ ぎ → げ" },
+                            { label: "およげられる", isCorrect: false },
+                            { label: "およぐれる", isCorrect: false },
+                        ]
+                    }
+                },
+                {
+                    id: 13,
+                    type: 'quiz',
+                    title: '修行その6：友達と',
+                    bgStart: 'from-green-400',
+                    bgEnd: 'to-emerald-600',
+                    content: <div className="text-center mb-4"><p>明日、パーティーがあります。<br/>行きます → ??</p></div>,
+                    quizData: {
+                        question: "「明日のパーティーに_____？」",
+                        options: [
+                            { label: "いかれる", isCorrect: false, feedback: "それは「受身形」や「敬語」に近いです。" },
+                            { label: "いける", isCorrect: true, feedback: "正解！ いきます → いける" },
+                        ]
+                    }
+                },
+                // --- BOSS BATTLE (14-18) ---
+                {
+                    id: 14,
+                    type: 'story',
+                    title: '魔王の城',
+                    bgStart: 'from-gray-700',
+                    bgEnd: 'to-black',
+                    characterMood: 'fighting',
+                    content: (
+                        <div className="text-center text-white">
+                            <div className="flex justify-center mb-6">
+                                <Ghost size={100} className="text-purple-500 animate-pulse" />
+                            </div>
+                            <h2 className="text-3xl font-bold text-red-500 mb-4">魔王が現れた！</h2>
+                            <p className="mb-4">魔王：「ガハハ！お前ごときに、この私が倒せるかな？」</p>
+                            <p className="bg-gray-800 p-4 rounded border border-red-500">
+                                <span className="text-yellow-400 font-bold">ボスバトル開始！</span><br/>
+                                クイズに正解して、魔王に攻撃しよう！<br/>
+                                間違えるとダメージを受けるぞ！
+                            </p>
+                        </div>
+                    )
+                },
+                {
+                    id: 15,
+                    type: 'battle',
+                    title: '決戦：ラウンド1',
+                    bgStart: 'from-red-900',
+                    bgEnd: 'to-black',
+                    content: <div className="text-center text-white font-bold mb-4">歌います の可能形は？</div>,
+                    quizData: {
+                        question: "歌います",
+                        options: [
+                            { label: "うたれる", isCorrect: false },
+                            { label: "うたえる", isCorrect: true },
+                            { label: "うたられる", isCorrect: false },
+                        ]
+                    }
+                },
+                {
+                    id: 16,
+                    type: 'battle',
+                    title: '決戦：ラウンド2',
+                    bgStart: 'from-red-900',
+                    bgEnd: 'to-black',
+                    content: <div className="text-center text-white font-bold mb-4">待ちます の可能形は？<br/>(ヒント: ち → て)</div>,
+                    quizData: {
+                        question: "待ちます",
+                        options: [
+                            { label: "まてる", isCorrect: true },
+                            { label: "まつれる", isCorrect: false },
+                            { label: "まちる", isCorrect: false },
+                        ]
+                    }
+                },
+                {
+                    id: 17,
+                    type: 'battle',
+                    title: '決戦：ラウンド3',
+                    bgStart: 'from-red-900',
+                    bgEnd: 'to-black',
+                    content: <div className="text-center text-white font-bold mb-4">話します の可能形は？</div>,
+                    quizData: {
+                        question: "話します",
+                        options: [
+                            { label: "はなれる", isCorrect: false },
+                            { label: "はなせる", isCorrect: true },
+                            { label: "はなしれる", isCorrect: false },
+                        ]
+                    }
+                },
+                {
+                    id: 18,
+                    type: 'story',
+                    title: 'とどめの一撃！',
+                    bgStart: 'from-blue-700',
+                    bgEnd: 'to-blue-900',
+                    characterMood: 'fighting',
+                    content: (
+                        <div className="text-center text-white">
+                            <Sword size={100} className="mx-auto text-yellow-400 mb-6 animate-ping" />
+                            <h2 className="text-3xl font-bold mb-4">魔王は弱っている！</h2>
+                            <p className="text-xl mb-6">
+                                ケン：「僕は、日本語が.... <span className="text-4xl font-bold text-yellow-300">話せる！</span>」
+                            </p>
+                            <button onClick={handleNext} className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-10 rounded-full shadow-[0_0_20px_rgba(255,0,0,0.7)] transform transition hover:scale-110">
+                                必殺技を放つ！
+                            </button>
+                        </div>
+                    )
+                },
+                // --- ENDING (19-20) ---
+                {
+                    id: 19,
+                    type: 'story',
+                    title: '平和な世界',
+                    bgStart: 'from-sky-300',
+                    bgEnd: 'to-blue-400',
+                    characterMood: 'happy',
+                    content: (
+                        <div className="text-center">
+                            <div className="flex justify-center gap-4 mb-6">
+                                <Character type="happy" size="lg" />
+                                <Character type="sensei" size="md" />
+                            </div>
+                            <h2 className="text-3xl font-bold text-white mb-4">おめでとう！</h2>
+                            <div className="bg-white/90 p-6 rounded-xl text-gray-800">
+                                <p>魔王は逃げていきました。</p>
+                                <p className="mt-4">師匠：「よくやった。お前はもう立派な日本語ヒーローじゃ。」</p>
+                                <p>ケン：「師匠、ありがとう！もっと勉強して、漢字ももっと<span className="text-blue-600 font-bold">書ける</span>ようになります！」</p>
+                            </div>
+                        </div>
+                    )
+                },
+                {
+                    id: 20,
+                    type: 'ending',
+                    title: '学習完了',
+                    bgStart: 'from-yellow-200',
+                    bgEnd: 'to-yellow-400',
+                    content: (
+                        <div className="text-center">
+                            <h1 className="text-4xl font-bold text-brown-800 mb-6">おしまい</h1>
+                            <div className="bg-white p-8 rounded-xl shadow-xl max-w-md mx-auto">
+                                <p className="text-gray-600 mb-2">あなたのスコア</p>
+                                <div className="text-5xl font-bold text-blue-600 mb-6">{score}点</div>
+                                
+                                <h3 className="font-bold text-lg mb-4 text-left border-b pb-2">復習ポイント</h3>
+                                <ul className="text-left text-sm space-y-2 mb-6">
+                                    <li>✅ グループ1: い段 → え段 (いきます → いける)</li>
+                                    <li>✅ グループ2: 「ます」をとって「られる」 (たべます → たべられる)</li>
+                                    <li>✅ グループ3: します→できる, きます→こられる</li>
+                                    <li>✅ 助詞: 「を」は「が」になることが多い</li>
+                                </ul>
+
+                                <button onClick={resetGame} className="flex items-center justify-center w-full gap-2 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition">
+                                    <RefreshCcw size={20} className="inline"/> 最初から遊ぶ
+                                </button>
+                            </div>
+                        </div>
+                    )
+                }
+            ];
+
+            const currentData = slides[currentSlide - 1];
+
+            const renderBattleStats = () => (
+                <div className="flex justify-between w-full max-w-2xl mb-8 px-4">
+                    <div className="bg-white/20 p-4 rounded-lg backdrop-blur-sm flex flex-col items-center">
+                        <span className="text-white font-bold mb-2">ケン (HP)</span>
+                        <div className="w-32 bg-gray-700 rounded-full h-4">
+                            <div className={`h-4 rounded-full transition-all ${heroHp < 30 ? 'bg-red-500' : 'bg-green-500'}`} style={{width: `${heroHp}%`}}></div>
+                        </div>
+                    </div>
+                    <div className="bg-black/40 p-4 rounded-lg backdrop-blur-sm flex flex-col items-center border border-red-500">
+                        <span className="text-red-300 font-bold mb-2">魔王 (HP)</span>
+                        <div className="w-32 bg-gray-700 rounded-full h-4">
+                            <div className="bg-red-600 h-4 rounded-full transition-all" style={{width: `${bossHp}%`}}></div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className={`min-h-screen w-full bg-gradient-to-br ${currentData.bgStart} ${currentData.bgEnd} transition-colors duration-1000 flex flex-col items-center justify-center p-4 font-sans`}>
+                    
+                    {/* Header */}
+                    <div className="absolute top-0 left-0 w-full p-4 z-10">
+                        <div className="flex justify-between items-center max-w-4xl mx-auto text-white drop-shadow-md">
+                            <span className="font-bold text-xl">{currentSlide}/20</span>
+                            <span className="flex items-center gap-2 bg-black/20 px-4 py-1 rounded-full"><Star className="text-yellow-400 fill-current" size={16}/> スコア: {score}</span>
+                        </div>
+                        <div className="max-w-4xl mx-auto mt-2">
+                            <ProgressBar />
+                        </div>
+                    </div>
+
+                    {/* Main Card */}
+                    <div className="relative w-full max-w-4xl bg-white/10 backdrop-blur-md border border-white/30 rounded-3xl shadow-2xl p-6 md:p-10 min-h-[600px] flex flex-col items-center justify-center overflow-hidden">
+                        
+                        {currentData.type === 'battle' && renderBattleStats()}
+
+                        {currentData.characterMood && currentData.type !== 'battle' && (
+                            <div className="mb-8">
+                                <Character type={currentData.characterMood} size="lg"/>
+                            </div>
+                        )}
+
+                        {currentData.type !== 'battle' && (
+                            <h2 className="text-2xl md:text-3xl font-bold text-white mb-8 text-center drop-shadow-lg">{currentData.title}</h2>
+                        )}
+
+                        <div className="w-full flex flex-col items-center z-10">
+                            {currentData.content}
+
+                            {(currentData.type === 'quiz' || currentData.type === 'battle') && currentData.quizData && (
+                                <div className="w-full max-w-md grid gap-4 mt-8">
+                                    <div className="text-xl md:text-2xl text-white font-bold text-center bg-black/20 p-4 rounded-lg mb-2">
+                                        {currentData.quizData.question}
+                                    </div>
+                                    
+                                    {currentData.quizData.options.map((opt, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleQuizAnswer(opt.isCorrect, opt.feedback)}
+                                            disabled={showFeedback !== null}
+                                            className={`
+                                                p-4 rounded-xl text-lg font-bold transition-all transform hover:scale-102 shadow-lg
+                                                ${showFeedback === null 
+                                                    ? 'bg-white hover:bg-gray-50 text-gray-800' 
+                                                    : opt.isCorrect 
+                                                        ? 'bg-green-500 text-white ring-4 ring-green-300' 
+                                                        : 'bg-gray-300 text-gray-500 opacity-50'
+                                                }
+                                            `}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+
+                                    {showFeedback && (
+                                        <div className={`mt-4 p-4 rounded-lg text-center animate-pulse ${showFeedback === 'correct' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {showFeedback === 'correct' ? (
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-2xl font-bold mb-1">正解！</span>
+                                                    <span>{currentData.quizData.options.find(o => o.isCorrect)?.feedback}</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-2xl font-bold mb-1">ざんねん...</span>
+                                                    <span>正解は「{currentData.quizData.options.find(o => o.isCorrect)?.label}」です。</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Navigation */}
+                        <div className="absolute bottom-0 w-full p-6 flex justify-between items-center pointer-events-none">
+                            <button 
+                                onClick={handleBack} 
+                                disabled={currentSlide === 1}
+                                className={`pointer-events-auto bg-white/80 hover:bg-white p-3 rounded-full text-gray-800 transition ${currentSlide === 1 ? 'opacity-0' : 'opacity-100'}`}
+                            >
+                                <ChevronLeft size={32}/>
+                            </button>
+
+                            {(currentData.type === 'story' || currentData.type === 'lesson' || currentData.type === 'ending' || showFeedback !== null) && currentSlide < 20 && (
+                                <button 
+                                    onClick={handleNext} 
+                                    className="pointer-events-auto bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full shadow-lg flex items-center gap-2 animate-bounce-slow"
+                                >
+                                    次へ <ChevronRight className="inline" />
+                                </button>
+                            )}
+                        </div>
+
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<HeroApp />);
+    </script>
+</body>
+</html>
